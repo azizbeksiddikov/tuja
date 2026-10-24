@@ -1,4 +1,3 @@
-import "server-only";
 import { prisma } from "@/lib/db";
 import { getRates, refreshRatesIfStale } from "@/lib/fx";
 import { convertMinor, type RateTable } from "@/lib/money";

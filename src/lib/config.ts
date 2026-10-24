@@ -13,7 +13,10 @@ export const config = {
   baseUrl: env.BETTER_AUTH_URL || env.APP_URL || "http://localhost:3000",
   gemini: {
     apiKey: env.GEMINI_API_KEY || "",
-    model: env.GEMINI_MODEL || "gemini-3.8-flash",
+    model: env.GEMINI_MODEL || "gemini-3.6-flash",
+    // Used when the primary model times out or returns 5xx (gemini-3.8-flash was timing out on 2026-10-24).
+    fallbackModel: env.GEMINI_FALLBACK_MODEL ?? "gemini-3.5-flash-lite",
+    timeoutMs: Number(env.GEMINI_TIMEOUT_MS || 25000),
   },
   plaid: {
     clientId: env.PLAID_CLIENT_ID || "",
