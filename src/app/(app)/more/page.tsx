@@ -1,6 +1,7 @@
 import Money from "@/components/Money";
 import PlaidConnect from "@/components/PlaidConnect";
 import { signOutAction } from "@/app/actions/auth";
+import { syncAllAction } from "@/app/actions/plaid";
 import { requireUser } from "@/lib/auth";
 import { isPlaidConfigured } from "@/lib/config";
 import { getAccounts } from "@/lib/server/finance";
@@ -28,6 +29,9 @@ export default async function More() {
           <>
             <p className="mt-1 text-sm text-muted">Plaid sandbox: pick any test bank and log in with <code className="rounded bg-soft px-1">user_good</code> / <code className="rounded bg-soft px-1">pass_good</code>.</p>
             <div className="mt-3"><PlaidConnect /></div>
+            {accounts.some((a) => a.source === "plaid") && (
+              <form action={syncAllAction} className="mt-2"><button className="btn-soft w-full">Sync transactions</button></form>
+            )}
           </>
         ) : (
           <p className="mt-1 text-sm text-muted">
