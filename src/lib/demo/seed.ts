@@ -10,15 +10,15 @@ import {
   type DemoTxn,
 } from "./generate";
 
-export const DEMO_EMAIL = "demo@bank-app.local";
+export const DEMO_EMAIL = "demo@tuja.local";
 export const DEMO_PASSWORD = "demo-account-not-secret"; // public on purpose (read-only persona)
-export const OTHER_EMAIL = "other-user@bank-app.local";
+export const OTHER_EMAIL = "other-user@tuja.local";
 
 async function upsertUser(prisma: PrismaClient, email: string, name: string, password: string, isDemo: boolean) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return existing;
   const id = randomUUID();
-  const user = await prisma.user.create({ data: { id, email, name, emailVerified: true, isDemo, homeCurrency: "UZS" } });
+  const user = await prisma.user.create({ data: { id, email, name, emailVerified: true, isDemo, homeCurrency: "KRW" } });
   await prisma.account.create({
     data: { id: randomUUID(), accountId: id, providerId: "credential", userId: id, password: await hashPassword(password) },
   });
@@ -50,7 +50,7 @@ async function writeAccounts(prisma: PrismaClient, userId: string, accounts: Dem
 /** (Re)create the demo persona and a second user (for cross-user isolation tests). Idempotent. */
 export async function seedDemo(prisma: PrismaClient, endDate = new Date()) {
   const demo = await upsertUser(prisma, DEMO_EMAIL, "Dilnoza (demo)", DEMO_PASSWORD, true);
-  await prisma.user.update({ where: { id: demo.id }, data: { homeCurrency: "UZS" } });
+  await prisma.user.update({ where: { id: demo.id }, data: { homeCurrency: "KRW" } });
   const txns = generateDemoTransactions(endDate);
   await writeAccounts(prisma, demo.id, DEMO_ACCOUNTS, txns);
 

@@ -3,7 +3,7 @@
 
 const env = process.env;
 
-export const APP_NAME = env.NEXT_PUBLIC_APP_NAME || "bank-app";
+export const APP_NAME = env.NEXT_PUBLIC_APP_NAME || env.APP_NAME || "Tuja";
 
 const DEV_DB = "postgresql://bank:bank@localhost:5433/bank"; // docker-compose.yml, dev only
 

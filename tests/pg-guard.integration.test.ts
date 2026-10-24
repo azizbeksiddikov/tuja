@@ -15,7 +15,7 @@ let otherId = "";
 beforeAll(async () => {
   try {
     const r = await pool.query<{ id: string; email: string }>(
-      "SELECT id, email FROM users WHERE email IN ('demo@bank-app.local', 'other-user@bank-app.local')",
+      "SELECT id, email FROM users WHERE email IN ('demo@tuja.local', 'other-user@tuja.local')",
     );
     demoId = r.rows.find((x) => x.email.startsWith("demo"))?.id ?? "";
     otherId = r.rows.find((x) => x.email.startsWith("other"))?.id ?? "";
