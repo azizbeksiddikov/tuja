@@ -1,0 +1,202 @@
+// Money is always stored as integer minor units (amount_minor BIGINT) + ISO-4217 currency.
+// Signed convention for transactions: negative = money out, positive = money in.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Better Auth tables ----------
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  isDemo        Boolean   @default(false) @map("is_demo")
+  homeCurrency  String    @default("UZS") @map("home_currency")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  sessions      Session[]
+  accounts      Account[]
+  bankAccounts  BankAccount[]
+  transactions  Transaction[]
+  plaidItems    PlaidItem[]
+  transfers     Transfer[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("auth_accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ---------- Finance ----------
+model PlaidItem {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId          String        @unique @map("item_id")
+  accessTokenEnc  String        @map("access_token_enc") // AES-256-GCM, never stored in plain text
+  institutionId   String?       @map("institution_id")
+  institutionName String?       @map("institution_name")
+  cursor          String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  bankAccounts    BankAccount[]
+
+  @@index([userId])
+  @@map("plaid_items")
+}
+
+model BankAccount {
+  id             String        @id @default(cuid())
+  userId         String        @map("user_id")
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  officialName   String?       @map("official_name")
+  institution    String
+  mask           String?
+  type           String // depository | credit | ...
+  subtype        String?
+  currency       String        @db.Char(3)
+  balanceMinor   BigInt        @map("balance_minor")
+  source         String        @default("manual") // demo | plaid | manual
+  plaidItemId    String?       @map("plaid_item_id")
+  plaidItem      PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  plaidAccountId String?       @unique @map("plaid_account_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  transactions   Transaction[]
+
+  @@index([userId])
+  @@map("bank_accounts")
+}
+
+model Transaction {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String      @map("account_id")
+  account     BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amountMinor BigInt      @map("amount_minor")
+  currency    String      @db.Char(3)
+  merchant    String
+  category    String
+  channel     String      @default("card")
+  bookedAt    DateTime    @map("booked_at") @db.Date
+  pending     Boolean     @default(false)
+  memo        String?
+  externalId  String?     @unique @map("external_id")
+  transferId  String?     @map("transfer_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([userId, bookedAt])
+  @@index([accountId, bookedAt])
+  @@map("transactions")
+}
+
+model Transfer {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey String   @map("idempotency_key")
+  fromAccountId  String   @map("from_account_id")
+  toAccountId    String   @map("to_account_id")
+  amountMinor    BigInt   @map("amount_minor")
+  currency       String   @db.Char(3)
+  toAmountMinor  BigInt   @map("to_amount_minor")
+  toCurrency     String   @map("to_currency") @db.Char(3)
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, idempotencyKey])
+  @@map("transfers")
+}
+
+/// UZS per 1 unit of `code`, published by the Central Bank of Uzbekistan (cbu.uz).
+model FxRate {
+  date    DateTime @db.Date
+  code    String   @db.Char(3)
+  rateUzs Decimal  @map("rate_uzs") @db.Decimal(20, 8)
+  source  String   @default("cbu")
+
+  @@id([date, code])
+  @@map("fx_rates")
+}
+
+model SqlAudit {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  sql        String
+  status     String // ok | blocked | error
+  reason     String?
+  rowCount   Int?     @map("row_count")
+  durationMs Int?     @map("duration_ms")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("sql_audit")
+}
+
+model AgentRun {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  prompt       String
+  answer       String?
+  trace        Json
+  model        String
+  latencyMs    Int      @map("latency_ms")
+  inputTokens  Int?     @map("input_tokens")
+  outputTokens Int?     @map("output_tokens")
+  error        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("agent_runs")
+}
