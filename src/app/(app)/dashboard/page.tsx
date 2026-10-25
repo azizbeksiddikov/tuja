@@ -131,7 +131,7 @@ export default async function Dashboard() {
         </ul>
       </section>
 
-      <Link href="/assistant" className="block rounded-card bg-dark p-5 text-card">
+      <Link href={`/assistant?q=${encodeURIComponent("Where did most of my won go this month, and how does it compare to last month?")}`} className="block rounded-card bg-dark p-5 text-card">
         <p className="text-xs text-card/60">Ask AI ✨</p>
         <p className="mt-1 text-lg font-bold leading-snug">
           “Where did most of my <span className="text-accent">won</span> go this month, and how does it compare to last month?”

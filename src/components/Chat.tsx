@@ -1,17 +1,21 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import SampleAnswer from "./SampleAnswer";
 
 type Step = { id: string; name: string; args: Record<string, unknown>; done?: boolean; ok?: boolean; blocked?: boolean; summary?: string; sql?: string; data?: unknown };
-type Msg = { role: "user" | "assistant"; content: string; steps?: Step[]; meta?: string; error?: string };
+type Msg = { role: "user" | "assistant"; content: string; steps?: Step[]; meta?: string; error?: string; errorCode?: string; question?: string };
 
-const SUGGESTIONS = [
-  "How much did I spend on food last month, in USD?",
-  "What are my subscriptions and what do they cost per month?",
-  "How much has Mom sent me since May, in won?",
-  "Compare my spending in September vs August by category",
-  "Show the memo on my Gift Shop Myeongdong purchase",
-];
+const STATUS_MESSAGES: Record<number, string> = {
+  401: "Your session has ended. Please sign in again.",
+  429: "Too many questions right now. Please wait a minute and try again.",
+  502: "The server is busy or restarting. Please try again in a moment.",
+  503: "The server is busy or restarting. Please try again in a moment.",
+  504: "The server took too long to answer. Please try again.",
+};
+const NO_RETRY = new Set(["not_configured", "misconfigured", "unauthorized", "quota"]);
+const SHOW_SAMPLE = new Set(["rate_limit", "quota", "not_configured", "misconfigured"]);
 
 /** Minimal formatter: **bold** → coral highlight, keeps line breaks. No HTML from the model is rendered. */
 function Rich({ text }: { text: string }) {
@@ -55,9 +59,9 @@ function Trace({ steps }: { steps: Step[] }) {
   );
 }
 
-export default function Chat({ configured }: { configured: boolean }) {
+export default function Chat({ configured, suggestions, initialQuestion = "" }: { configured: boolean; suggestions: string[]; initialQuestion?: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialQuestion.slice(0, 1000));
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
 
@@ -66,6 +70,7 @@ export default function Chat({ configured }: { configured: boolean }) {
   }, [msgs]);
 
   const update = (fn: (m: Msg) => Msg) => setMsgs((all) => [...all.slice(0, -1), fn(all[all.length - 1])]);
+  const fail = (error: string, errorCode?: string) => update((m) => ({ ...m, error, errorCode }));
 
   async function send(text: string) {
     const q = text.trim();
@@ -73,12 +78,14 @@ export default function Chat({ configured }: { configured: boolean }) {
     setInput("");
     setBusy(true);
     const history = [...msgs.filter((m) => !m.error && m.content), { role: "user" as const, content: q }].map(({ role, content }) => ({ role, content }));
-    setMsgs((m) => [...m, { role: "user", content: q }, { role: "assistant", content: "", steps: [] }]);
+    setMsgs((m) => [...m, { role: "user", content: q }, { role: "assistant", content: "", steps: [], question: q }]);
+    let finished = false;
+    let gotText = false;
     try {
       const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history }) });
       if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({ error: "Request failed" }));
-        update((m) => ({ ...m, error: err.error || "Request failed" }));
+        const err = await res.json().catch(() => null);
+        fail(err?.error || STATUS_MESSAGES[res.status] || `Something went wrong (HTTP ${res.status}). Please try again.`, err?.code ?? (res.status === 401 ? "unauthorized" : undefined));
         return;
       }
       const reader = res.body.getReader();
@@ -92,17 +99,28 @@ export default function Chat({ configured }: { configured: boolean }) {
         buf = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.trim()) continue;
-          const ev = JSON.parse(line);
-          if (ev.type === "text") update((m) => ({ ...m, content: m.content + ev.delta }));
-          else if (ev.type === "tool_call") update((m) => ({ ...m, steps: [...(m.steps ?? []), { id: ev.id, name: ev.name, args: ev.args }] }));
+          let ev;
+          try {
+            ev = JSON.parse(line);
+          } catch {
+            continue; // skip a malformed line instead of dropping the whole answer
+          }
+          if (ev.type === "text") {
+            gotText = true;
+            update((m) => ({ ...m, content: m.content + ev.delta }));
+          } else if (ev.type === "tool_call") update((m) => ({ ...m, steps: [...(m.steps ?? []), { id: ev.id, name: ev.name, args: ev.args }] }));
           else if (ev.type === "tool_result")
             update((m) => ({ ...m, steps: (m.steps ?? []).map((s) => (s.id === ev.id ? { ...s, done: true, ok: ev.ok, blocked: ev.blocked, summary: ev.summary, sql: ev.sql, data: ev.data } : s)) }));
-          else if (ev.type === "error") update((m) => ({ ...m, error: ev.message }));
-          else if (ev.type === "done") update((m) => ({ ...m, meta: `${ev.model} · ${(ev.latencyMs / 1000).toFixed(1)} s · ${ev.inputTokens ?? "?"} in / ${ev.outputTokens ?? "?"} out tokens` }));
+          else if (ev.type === "error") fail(ev.message, ev.code);
+          else if (ev.type === "done") {
+            finished = true;
+            update((m) => (m.error && !m.content ? m : { ...m, meta: [ev.model, `${(ev.latencyMs / 1000).toFixed(1)} s`, ev.inputTokens ? `${ev.inputTokens} in / ${ev.outputTokens ?? 0} out tokens` : ""].filter(Boolean).join(" · ") }));
+          }
         }
       }
+      if (!finished) update((m) => (m.error ? m : { ...m, error: gotText ? "The answer was cut off. Please try again." : "The connection closed before an answer arrived. Please try again." }));
     } catch {
-      update((m) => ({ ...m, error: "Connection lost. Try again." }));
+      fail(navigator.onLine === false ? "You appear to be offline. Check your connection and try again." : "Couldn't reach the server. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
@@ -110,10 +128,17 @@ export default function Chat({ configured }: { configured: boolean }) {
 
   if (!configured) {
     return (
-      <div className="card text-center">
-        <p className="text-3xl">✨</p>
-        <h1 className="mt-2 text-lg font-extrabold">AI not configured</h1>
-        <p className="mt-1 text-sm text-muted">This server has no GEMINI_API_KEY. Everything else in the app works without it.</p>
+      <div className="flex flex-col gap-3">
+        <div className="card">
+          <p className="text-3xl" aria-hidden>✨</p>
+          <h1 className="mt-2 text-lg font-extrabold">The AI assistant is off on this server</h1>
+          <p className="mt-1 text-sm text-muted">No Gemini API key is set here. The dashboard, transactions and currency switcher all work without it.</p>
+          <div className="mt-4 flex gap-2">
+            <Link href="/dashboard" className="btn-primary flex-1">Back to dashboard</Link>
+            <Link href="/transactions" className="btn-soft flex-1">Transactions</Link>
+          </div>
+        </div>
+        <SampleAnswer label="What it looks like when it's on · a real recorded answer" />
       </div>
     );
   }
@@ -124,9 +149,10 @@ export default function Chat({ configured }: { configured: boolean }) {
         <div className="card">
           <h1 className="text-xl font-extrabold">Ask about your money</h1>
           <p className="mt-1 text-sm text-muted">Gemini answers using tools and read-only SQL over your own data. Open any step to see exactly what ran.</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => send(s)} className="min-h-10 rounded-full bg-soft px-3.5 py-2 text-left text-xs font-bold hover:brightness-95">
+          <p className="mt-4 text-xs font-bold text-muted">Try one:</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {suggestions.map((s) => (
+              <button key={s} type="button" onClick={() => send(s)} disabled={busy} className="min-h-10 rounded-full bg-soft px-3.5 py-2 text-left text-xs font-bold hover:brightness-95 disabled:opacity-50">
                 {s}
               </button>
             ))}
@@ -136,13 +162,27 @@ export default function Chat({ configured }: { configured: boolean }) {
 
       {msgs.map((m, i) =>
         m.role === "user" ? (
-          <div key={i} className="ml-auto max-w-[85%] rounded-card rounded-br-md bg-card px-4 py-3 text-sm font-medium shadow-card">{m.content}</div>
+          <div key={i} className="ml-auto max-w-[85%] break-words rounded-card rounded-br-md bg-card px-4 py-3 text-sm font-medium shadow-card">{m.content}</div>
         ) : (
-          <div key={i} className="max-w-full rounded-card rounded-bl-md bg-dark px-4 py-3.5 text-sm text-card md:max-w-[90%]">
-            {m.steps && m.steps.length > 0 && <Trace steps={m.steps} />}
-            {m.content ? <div className={m.steps?.length ? "mt-3" : ""}><Rich text={m.content} /></div> : !m.error && <p className="mt-2 animate-pulse text-card/60">Thinking…</p>}
-            {m.error && <p className="mt-2 text-accent">{m.error}</p>}
-            {m.meta && <p className="mt-2 font-mono text-[10px] text-card/40">{m.meta}</p>}
+          <div key={i} className="flex flex-col gap-3">
+            <div className="max-w-full break-words rounded-card rounded-bl-md bg-dark px-4 py-3.5 text-sm text-card md:max-w-[90%]">
+              {m.steps && m.steps.length > 0 && <Trace steps={m.steps} />}
+              {m.content ? <div className={m.steps?.length ? "mt-3" : ""}><Rich text={m.content} /></div> : !m.error && <p className="mt-2 animate-pulse text-card/60">Thinking…</p>}
+              {m.error && (
+                <div role="alert" className={m.content || m.steps?.length ? "mt-3" : ""}>
+                  <p className="text-accent">{m.error}</p>
+                  {m.errorCode === "unauthorized" ? (
+                    <Link href="/sign-in" className="btn-soft mt-3">Sign in</Link>
+                  ) : (
+                    !NO_RETRY.has(m.errorCode ?? "") && m.question && i === msgs.length - 1 && (
+                      <button type="button" onClick={() => send(m.question!)} disabled={busy} className="btn-soft mt-3 min-h-10">Try again</button>
+                    )
+                  )}
+                </div>
+              )}
+              {m.meta && <p className="mt-2 break-words font-mono text-[10px] text-card/40">{m.meta}</p>}
+            </div>
+            {m.error && SHOW_SAMPLE.has(m.errorCode ?? "") && i === msgs.length - 1 && <SampleAnswer label="While you wait · a real answer recorded earlier" className="md:max-w-[90%]" />}
           </div>
         ),
       )}
@@ -155,8 +195,8 @@ export default function Chat({ configured }: { configured: boolean }) {
         }}
         className="sticky bottom-20 flex gap-2 rounded-card bg-card p-2 shadow-card md:bottom-4"
       >
-        <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={1000} placeholder="e.g. How much did I spend at GS25 in October?" className="min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" aria-label="Your question" />
-        <button className="btn-primary" disabled={busy || !input.trim()}>{busy ? "…" : "Ask"}</button>
+        <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={1000} placeholder="e.g. How much did I spend at GS25 this month?" className="min-h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" aria-label="Your question" />
+        <button className="btn-primary min-w-16" disabled={busy || !input.trim()}>{busy ? "…" : "Ask"}</button>
       </form>
       <p className="text-center text-[11px] text-muted">The assistant is read-only and can make mistakes. Check the tool trace for the exact numbers.</p>
     </div>

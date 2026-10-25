@@ -35,7 +35,7 @@ export default async function More() {
           </>
         ) : (
           <p className="mt-1 text-sm text-muted">
-            {user.isDemo ? "Linking banks is turned off in the read-only demo. Create your own account to try the Plaid sandbox." : "Bank linking is not configured on this server."}
+            {user.isDemo ? "Linking banks is turned off in the read-only demo. Create your own account to try the Plaid sandbox." : "Bank linking (Plaid sandbox) isn't set up on this server. Everything else in the app works without it."}
           </p>
         )}
         <ul className="mt-3 divide-y divide-line">

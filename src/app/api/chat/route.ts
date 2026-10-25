@@ -17,13 +17,13 @@ const body = z.object({
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
-  if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
-  if (!isAiConfigured()) return Response.json({ error: "AI not configured" }, { status: 503 });
+  if (!user) return Response.json({ error: "Your session has ended. Please sign in again.", code: "unauthorized" }, { status: 401 });
+  if (!isAiConfigured()) return Response.json({ error: "The AI assistant is not configured on this server.", code: "not_configured" }, { status: 503 });
   const parsed = body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success || parsed.data.messages.at(-1)?.role !== "user") return Response.json({ error: "Bad request" }, { status: 400 });
+  if (!parsed.success || parsed.data.messages.at(-1)?.role !== "user") return Response.json({ error: "That message couldn't be sent. Please try again.", code: "bad_request" }, { status: 400 });
 
   const quota = await checkAgentQuota(user, await clientIp());
-  if (!quota.ok) return Response.json({ error: quota.message }, { status: 429 });
+  if (!quota.ok) return Response.json({ error: quota.message, code: "quota" }, { status: 429 });
 
   if (user.isDemo) await ensureDemoFresh(prisma);
   const displayCurrency = await getDisplayCurrency(user.homeCurrency);
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
           controller.enqueue(enc.encode(JSON.stringify(ev) + "\n"));
         }
       } catch (e) {
-        controller.enqueue(enc.encode(JSON.stringify({ type: "error", message: "Unexpected error" }) + "\n"));
+        controller.enqueue(enc.encode(JSON.stringify({ type: "error", message: "Something went wrong on our side. Please try again.", code: "failed" }) + "\n"));
         console.error("[chat]", e);
       } finally {
         controller.close();

@@ -10,7 +10,10 @@ export type AgentEvent =
   | { type: "tool_result"; id: string; name: string; ok: boolean; blocked?: boolean; summary: string; sql?: string; data: unknown }
   | { type: "text"; delta: string }
   | { type: "done"; runId?: string; model: string; latencyMs: number; inputTokens?: number; outputTokens?: number }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; code?: AgentErrorCode };
+
+/** Lets the UI pick a friendly state: rate_limit/quota show a recorded example answer. */
+export type AgentErrorCode = "rate_limit" | "not_configured" | "misconfigured" | "failed";
 
 const MAX_ROUNDS = 6;
 
@@ -53,7 +56,7 @@ export async function* runAgent(opts: {
   const fallback = opts.model ? "" : config.gemini.fallbackModel;
   const apiKey = opts.apiKey ?? config.gemini.apiKey;
   if (!apiKey) {
-    yield { type: "error", message: "AI not configured" };
+    yield { type: "error", message: "The AI assistant is not configured on this server.", code: "not_configured" };
     return;
   }
   const ctx: ToolContext = { userId: opts.userId, displayCurrency: opts.displayCurrency };
@@ -139,12 +142,14 @@ export async function* runAgent(opts: {
   } catch (e) {
     error = (e as Error).message || "Model error";
     console.error("[agent]", error.replace(/\s+/g, " ").slice(0, 300));
-    const msg = /429|RESOURCE_EXHAUSTED|quota/i.test(error)
-      ? "The AI is at its rate limit right now. Please try again in a minute."
-      : /api key|permission|unauth/i.test(error)
-        ? "AI is misconfigured on the server."
-        : "The AI service failed. Please try again.";
-    yield { type: "error", message: msg };
+    const code: AgentErrorCode = /429|RESOURCE_EXHAUSTED|quota/i.test(error) ? "rate_limit" : /api key|permission|unauth/i.test(error) ? "misconfigured" : "failed";
+    const msg = {
+      rate_limit: "The AI model is at its rate limit right now (this demo runs on a free Gemini quota). Please try again in a minute.",
+      misconfigured: "The AI assistant is misconfigured on the server, so it can't answer right now.",
+      not_configured: "The AI assistant is not configured on this server.",
+      failed: "The AI service didn't respond properly. Please try again.",
+    }[code];
+    yield { type: "error", message: msg, code };
   }
 
   const latencyMs = Date.now() - started;
