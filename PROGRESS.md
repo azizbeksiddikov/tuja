@@ -18,5 +18,8 @@ Name: **Tuja** (repo `azizbeksiddikov/tuja`, private). Live target: https://tuja
   - Model: `gemini-3.8-flash` (listed as stable in Google docs) returned 504 DEADLINE_EXCEEDED on every call on 2026-10-24, so default = `gemini-3.6-flash`, with automatic fallback to `gemini-3.5-flash-lite` on timeout/5xx.
 - [x] Plaid sandbox: Transactions product in link token (B2), cursor loop that appends and restarts on mutation (B1), personal_finance_category (B3), all accounts (B8), AES-256-GCM tokens (B6). Unit tests + `scripts/plaid-sandbox-check.ts` verified against real sandbox (14 accounts, 17 txns on initial update, token encrypted, cursor saved).
 - [x] Dockerfile (standalone, 1.55 GB) + `docker-compose.prod.yml` (app on 127.0.0.1:3100 + postgres:16, no published DB port). Entrypoint: prisma migrate deploy, then idempotent seed, then server. Tested locally with dummy values: first boot + restart on the same volume (no pending migrations, no duplicate rows), demo login works, "AI not configured" shown without keys. ~65 MB RAM for the app at idle.
-- [ ] Deploy (Mark): server env file + nginx + DNS
-- [ ] Evals (>=15 factual + >=10 adversarial on real Gemini) + README
+- [x] Deploy by Mark (VPS, nginx + TLS for tuja.azbek.me).
+- [x] Evals harness: 19 factual (SQL ground truth) + 15 adversarial (`evals/`). Guard/RLS layer with no model: 15/15 stopped, 0 leaks, row counts unchanged (`evals/results-guard.md`).
+  - BLOCKER for the model evals AND the live assistant: the Gemini key is on the FREE tier = 20 requests/day/model (5/min) for gemini-3.6-flash; one question uses 2-3 requests. The quota ran out during the eval run (6/6 completed factual answers were correct; the rest got 429). Fix: enable billing on the AI Studio project (Tier 1, instant), then run `npm run eval` and paste the summary into the README.
+  - The agent now falls back to gemini-3.5-flash-lite on 429 and shows "The AI is at its rate limit right now" instead of a generic error.
+- [x] README rewritten (live link, B1-B11 table, architecture, security, evals, credit); LICENSE has a copyright line for my changes; landing example replaced with a real model answer.
