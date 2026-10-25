@@ -4,6 +4,8 @@ import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { ensureDemoFresh } from "@/lib/demo/refresh";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/demo/seed";
 import { isSupportedCurrency } from "@/lib/money";
 import { CCY_COOKIE } from "@/lib/server/prefs";
@@ -56,6 +58,7 @@ export async function signUpAction(_: FormState, form: FormData): Promise<FormSt
 /** One click into the shared, read-only demo persona. */
 export async function demoSignInAction(): Promise<void> {
   if (await limited("demo")) redirect("/?error=rate");
+  await ensureDemoFresh(prisma); // dates always end today, even if the server has run for weeks
   try {
     await auth.api.signInEmail({ body: { email: DEMO_EMAIL, password: DEMO_PASSWORD }, headers: await headers() });
   } catch (e) {

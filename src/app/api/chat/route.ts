@@ -2,6 +2,8 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { isAiConfigured } from "@/lib/config";
 import { runAgent } from "@/lib/agent/run";
+import { prisma } from "@/lib/db";
+import { ensureDemoFresh } from "@/lib/demo/refresh";
 import { checkAgentQuota } from "@/lib/agent/limits";
 import { getDisplayCurrency } from "@/lib/server/prefs";
 import { clientIp } from "@/lib/server/rate-limit";
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
   const quota = await checkAgentQuota(user, await clientIp());
   if (!quota.ok) return Response.json({ error: quota.message }, { status: 429 });
 
+  if (user.isDemo) await ensureDemoFresh(prisma);
   const displayCurrency = await getDisplayCurrency(user.homeCurrency);
   const enc = new TextEncoder();
   const stream = new ReadableStream({
