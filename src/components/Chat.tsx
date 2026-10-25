@@ -134,7 +134,7 @@ export default function Chat({ configured, suggestions, initialQuestion = "" }: 
           <h1 className="mt-2 text-lg font-extrabold">The AI assistant is off on this server</h1>
           <p className="mt-1 text-sm text-muted">No Gemini API key is set here. The dashboard, transactions and currency switcher all work without it.</p>
           <div className="mt-4 flex gap-2">
-            <Link href="/dashboard" className="btn-primary flex-1">Back to dashboard</Link>
+            <Link href="/dashboard" className="btn-primary flex-1">Dashboard</Link>
             <Link href="/transactions" className="btn-soft flex-1">Transactions</Link>
           </div>
         </div>

@@ -8,6 +8,12 @@ Live demo: **https://tuja.azbek.me** (click "Try the demo", no sign-up)
 
 Tuja started from JS Mastery's [Horizon tutorial](https://github.com/adrianhajdin/banking) (MIT). I imported it untouched as the first commit, tagged it [`upstream-baseline`](../../tree/upstream-baseline), and everything after that is my own work: see `git diff upstream-baseline..master`. I found security bugs in the tutorial and fixed them, replaced Appwrite with Postgres, and added multi-currency support, an evaluated AI agent and a guarded Text-to-SQL engine.
 
+<p align="center">
+  <img src="docs/screenshots/after-landing-390.png" alt="Landing page on a 390px phone" width="250">
+  <img src="docs/screenshots/after-assistant-answer-390.png" alt="Assistant answering with a visible tool call" width="250">
+  <img src="docs/screenshots/after-dashboard-1280.png" alt="Dashboard on desktop" width="420">
+</p>
+
 The demo persona is Dilnoza, an Uzbek master's student in Seoul. Her parents send so'm from Tashkent, rent and food are paid in won, and her subscriptions and freelance income are in dollars. About 16–18k Uzbek students live in Korea, and no existing app shows UZS and KRW side by side.
 
 ---
@@ -37,18 +43,30 @@ The demo persona is Dilnoza, an Uzbek master's student in Seoul. Her parents sen
 |---|---|
 | Postgres + Prisma 7 schema; money stored as `amount_minor BIGINT` + ISO currency | `prisma/schema.prisma` |
 | Better Auth email/password; auth HTTP routes limited to `get-session`/`sign-out` so nobody can change the public demo password | `src/lib/auth.ts`, `src/app/actions/auth.ts` |
-| One-click **read-only demo** with ~300 deterministic transactions over 6 months, including a prompt-injection memo | `src/lib/demo/` |
-| **UZS / KRW / USD** everywhere, using Central Bank of Uzbekistan rates (daily fetch + 6-month weekly backfill) | `src/lib/fx.ts`, `src/lib/money.ts` |
+| One-click **read-only demo** with ~300 deterministic transactions over 6 months, including a prompt-injection memo. It reseeds itself once a day (UTC) so the data always ends today: checked on demo requests, one reseed across all processes via a Postgres advisory lock, in a single transaction so visitors never see half-written data | `src/lib/demo/` |
+| **UZS / KRW / USD** everywhere. Rates come from the Central Bank of Uzbekistan (3 s timeout); if cbu.uz is unreachable (it often is from servers outside Central Asia), from [ExchangeRate-API](https://www.exchangerate-api.com)'s open endpoint, then a static table. Rates are cached in Postgres and refreshed in the background, and the UI names the source it used | `src/lib/fx.ts`, `src/lib/money.ts` |
 | **Gemini agent** with function calling: `get_balances`, `search_transactions`, `spending_summary`, `convert`, `run_readonly_sql` | `src/lib/agent/` |
 | Streamed chat UI that shows every tool call, its arguments, result and SQL | `src/components/Chat.tsx` |
 | **pg-guard**: guarded Text-to-SQL (details below) | `src/lib/pg-guard/` |
 | Quotas: per-user daily cap, demo per-IP hourly cap, burst limit, model fallback on timeouts/429 | `src/lib/agent/limits.ts` |
 | Evals on the real model: factual (SQL ground truth) + adversarial | `evals/` |
-| Mobile-first redesign: bottom tab bar on phones, 2-column cards on desktop, theme tokens in one file | `src/app/globals.css` |
+| Mobile-first redesign: bottom tab bar on phones, 2-column cards on desktop, theme tokens in one file. Checked with a Playwright audit at 360/390/768/1280px (no horizontal overflow, tap targets ≥ 40px) | `src/app/globals.css`, [`docs/screenshots/`](docs/screenshots) |
+| Friendly failure states: AI rate limit or not configured (shows a recorded real answer instead), demo quota, proxy 502/504, offline, cut-off streams, Plaid not configured, plus app-wide error and 404 pages with no stack traces | `src/components/Chat.tsx`, `src/app/error.tsx` |
 | Docker image (Next standalone) + compose with Postgres; migrations and idempotent seed on start | `Dockerfile`, `docker-compose.prod.yml` |
-| Tests: 74 Vitest cases (pg-guard validator, RLS integration on real Postgres, money/FX, Plaid sync, crypto) | `src/**/__tests__`, `tests/` |
+| Tests: 82 Vitest cases (pg-guard validator, RLS integration on real Postgres, money/FX, FX provider fallback chain, daily demo reseed incl. concurrency, Plaid sync, crypto) | `src/**/__tests__`, `tests/` |
 
 Inherited from the tutorial: the general idea (Next.js banking dashboard with Plaid Link), the MIT license and a few shadcn/ui primitives.
+
+### Mobile, before and after
+
+Long merchant names used to widen the whole page on phones (the dashboard rendered 426px wide on a 360px screen). Grids now use `minmax(0, 1fr)`, so rows truncate instead.
+
+<p align="center">
+  <img src="docs/screenshots/before-dashboard-360.png" alt="Before: dashboard overflowing a 360px screen" width="240">
+  <img src="docs/screenshots/after-dashboard-360.png" alt="After: dashboard fitting a 360px screen" width="240">
+  <img src="docs/screenshots/after-assistant-rate-limit-390.png" alt="Assistant rate-limit state with a recorded example answer" width="240">
+</p>
+<p align="center"><sub>Left: before, 360px. Middle: after, 360px. Right: what visitors see when the free Gemini quota runs out.</sub></p>
 
 ---
 
@@ -65,6 +83,7 @@ flowchart LR
   RO --> PG
   N -->|link token / exchange / transactionsSync| P[Plaid sandbox]
   N -->|daily rates| C[cbu.uz]
+  N -.->|"backup rates (cbu.uz unreachable)"| E[open.er-api.com]
 ```
 
 - **Stack:** Next.js 16.4 (App Router, server actions), React 19.3, TypeScript, Tailwind, Prisma 7 with `@prisma/adapter-pg`, Better Auth, `@google/genai`, Plaid 49, `libpg-query` (the real Postgres parser compiled to WASM), Vitest.
@@ -121,7 +140,7 @@ docker compose up -d                       # dev Postgres on 127.0.0.1:5433
 npm ci
 npx prisma migrate deploy && npm run db:seed -- --backfill
 npm run dev                                # http://localhost:3000
-npm test                                   # 74 tests (DB tests need the dev Postgres)
+npm test                                   # 82 tests (DB tests need the dev Postgres)
 npm run eval                               # needs GEMINI_API_KEY; writes evals/results.md
 npx tsx scripts/plaid-sandbox-check.ts     # needs PLAID_CLIENT_ID/PLAID_SECRET (sandbox)
 ```
