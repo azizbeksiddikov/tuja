@@ -9,6 +9,13 @@ export default function Footer({ className = "" }: { className?: string }) {
         </a>{" "}
         (MIT, JS Mastery). Rebuilt on Postgres with a guarded AI assistant.
       </p>
+      <p>
+        Exchange rates: Central Bank of Uzbekistan; backup{" "}
+        <a className="underline" href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">
+          Rates By Exchange Rate API
+        </a>
+        .
+      </p>
     </footer>
   );
 }
