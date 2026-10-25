@@ -45,7 +45,18 @@ export default async function Dashboard() {
           <Money minor={total} ccy={ccy} />
         </p>
         <p className="mt-1 text-xs text-muted">
-          Converted at {source === "cbu" ? `CBU rates of ${asOf}` : "fallback rates (cbu.uz unreachable)"} · 1 USD = {Math.round(rates.USD).toLocaleString("en-US")} UZS · 1 KRW = {rates.KRW?.toFixed(2)} UZS
+          Converted at{" "}
+          {source === "cbu" ? (
+            `CBU rates of ${asOf}`
+          ) : source === "er-api" ? (
+            <>
+              open.er-api.com rates of {asOf} (cbu.uz unreachable),{" "}
+              <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer" className="underline">Rates By Exchange Rate API</a>
+            </>
+          ) : (
+            "built-in fallback rates (live rate sources unreachable)"
+          )}{" "}
+          · 1 USD = {Math.round(rates.USD).toLocaleString("en-US")} UZS · 1 KRW = {rates.KRW?.toFixed(2)} UZS
         </p>
         <div className="mt-4 flex gap-2">
           <Link href="/assistant" className="btn-primary flex-1">Ask AI</Link>

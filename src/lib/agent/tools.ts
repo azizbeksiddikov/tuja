@@ -5,6 +5,7 @@ import { convertMinor, formatMoney, toMajor, toMinor, isSupportedCurrency, type 
 import { runGuardedQuery, type GuardPolicy } from "@/lib/pg-guard";
 import { getAccounts, getRates, iso, listTransactions, buildTxnWhere } from "./deps";
 import { NON_SPEND_CATEGORIES } from "@/lib/categories";
+import { RATE_SOURCE_LABEL } from "@/lib/fx";
 
 // Tools the Gemini agent may call. Every tool receives the authenticated userId from the server
 // (never from the model) and is read-only. There are no write tools: the assistant cannot move money.
@@ -50,7 +51,7 @@ export type ToolName = keyof typeof schemas;
 export const TOOL_DECLARATIONS = [
   {
     name: "get_balances",
-    description: "Current balance of each of the user's accounts in its own currency, plus each balance and the total converted to `currency` at the latest CBU rate.",
+    description: "Current balance of each of the user's accounts in its own currency, plus each balance and the total converted to `currency` at the latest stored rate (Central Bank of Uzbekistan, or a backup provider when cbu.uz is unreachable; see rates_source).",
     parametersJsonSchema: {
       type: "object",
       properties: { currency: { type: "string", description: "Currency for totals: UZS, KRW, USD, EUR or RUB. Default: the user's display currency." } },
@@ -75,7 +76,7 @@ export const TOOL_DECLARATIONS = [
   },
   {
     name: "spending_summary",
-    description: "Totals over a date range grouped by category, merchant, month or account, converted to one currency at the latest CBU rate (also returns per-original-currency totals). Excludes transfers between own accounts unless include_transfers=true. direction=out sums money spent (as positive numbers), direction=in sums money received.",
+    description: "Totals over a date range grouped by category, merchant, month or account, converted to one currency at the latest stored rate (also returns per-original-currency totals). Excludes transfers between own accounts unless include_transfers=true. direction=out sums money spent (as positive numbers), direction=in sums money received.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -92,7 +93,7 @@ export const TOOL_DECLARATIONS = [
   },
   {
     name: "convert",
-    description: "Convert an amount between UZS, KRW, USD, EUR, RUB using Central Bank of Uzbekistan rates (latest, or the latest on/before `date`).",
+    description: "Convert an amount between UZS, KRW, USD, EUR, RUB using stored rates, normally from the Central Bank of Uzbekistan (latest, or the latest on/before `date`).",
     parametersJsonSchema: {
       type: "object",
       properties: { amount: { type: "number" }, from: { type: "string" }, to: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD, optional" } },
@@ -115,9 +116,9 @@ export const TOOL_DECLARATIONS = [
   },
 ];
 
-async function rateTable(ctxDate?: string): Promise<{ rates: RateTable; asOf: string | null }> {
+async function rateTable(ctxDate?: string): Promise<{ rates: RateTable; asOf: string | null; source: string }> {
   const r = await getRates(ctxDate ? new Date(`${ctxDate}T00:00:00Z`) : undefined);
-  return { rates: r.rates, asOf: r.asOf };
+  return { rates: r.rates, asOf: r.asOf, source: RATE_SOURCE_LABEL[r.source] };
 }
 
 async function getBalances(ctx: ToolContext, a: z.infer<typeof schemas.get_balances>): Promise<ToolOutput> {
@@ -156,7 +157,7 @@ async function searchTransactions(ctx: ToolContext, a: z.infer<typeof schemas.se
 
 async function spendingSummary(ctx: ToolContext, a: z.infer<typeof schemas.spending_summary>): Promise<ToolOutput> {
   const target = a.currency ?? ctx.displayCurrency;
-  const { rates, asOf } = await rateTable();
+  const { rates, asOf, source } = await rateTable();
   const where = buildTxnWhere(ctx.userId, { from: a.from, to: a.to, direction: a.direction, category: a.category });
   if (!a.include_transfers && !a.category) where.category = { notIn: NON_SPEND_CATEGORIES };
   const rows = await prisma.transaction.findMany({ where, select: { amountMinor: true, currency: true, category: true, merchant: true, bookedAt: true, account: { select: { name: true } } }, take: 20_000 });
@@ -185,17 +186,17 @@ async function spendingSummary(ctx: ToolContext, a: z.infer<typeof schemas.spend
     }));
   return {
     ok: true,
-    data: { from: a.from, to: a.to, direction: a.direction, currency: target, grand_total: money(grand, target), transactions: rows.length, groups: out, rates_as_of: asOf, note: "Converted at the latest CBU rate, not the rate on each transaction date." },
+    data: { from: a.from, to: a.to, direction: a.direction, currency: target, grand_total: money(grand, target), transactions: rows.length, groups: out, rates_as_of: asOf, rates_source: source, note: "Converted at the latest stored rate, not the rate on each transaction date." },
     summary: `${out.length} groups, total ${formatMoney(grand, target)}`,
   };
 }
 
 async function convert(_: ToolContext, a: z.infer<typeof schemas.convert>): Promise<ToolOutput> {
-  const { rates, asOf } = await rateTable(a.date);
+  const { rates, asOf, source } = await rateTable(a.date);
   const minor = convertMinor(toMinor(a.amount, a.from), a.from, a.to, rates);
   return {
     ok: true,
-    data: { input: money(Number(toMinor(a.amount, a.from)), a.from), result: money(Number(minor), a.to), rate_uzs: { [a.from]: rates[a.from], [a.to]: rates[a.to] }, rates_as_of: asOf, source: "Central Bank of Uzbekistan" },
+    data: { input: money(Number(toMinor(a.amount, a.from)), a.from), result: money(Number(minor), a.to), rate_uzs: { [a.from]: rates[a.from], [a.to]: rates[a.to] }, rates_as_of: asOf, source },
     summary: `${a.amount} ${a.from} = ${formatMoney(minor, a.to)}`,
   };
 }
