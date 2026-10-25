@@ -126,7 +126,7 @@ export default function Chat({ configured }: { configured: boolean }) {
           <p className="mt-1 text-sm text-muted">Gemini answers using tools and read-only SQL over your own data. Open any step to see exactly what ran.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => send(s)} className="rounded-full bg-soft px-3 py-2 text-left text-xs font-bold hover:brightness-95">
+              <button key={s} onClick={() => send(s)} className="min-h-10 rounded-full bg-soft px-3.5 py-2 text-left text-xs font-bold hover:brightness-95">
                 {s}
               </button>
             ))}

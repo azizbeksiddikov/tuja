@@ -13,7 +13,7 @@ export default async function More() {
   const accounts = await getAccounts(user.id);
   const plaid = isPlaidConfigured() && !user.isDemo;
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <section className="card">
         <p className="text-xs text-muted">Signed in as</p>
         <p className="font-extrabold">{user.name}</p>
@@ -40,8 +40,8 @@ export default async function More() {
         )}
         <ul className="mt-3 divide-y divide-line">
           {accounts.map((a) => (
-            <li key={a.id} className="flex justify-between py-2 text-sm">
-              <span><b>{a.name}</b> <span className="text-muted">· {a.source}</span></span>
+            <li key={a.id} className="flex justify-between gap-3 py-2 text-sm">
+              <span className="min-w-0 truncate"><b>{a.name}</b> <span className="text-muted">· {a.source}</span></span>
               <Money minor={a.balanceMinor} ccy={a.currency} />
             </li>
           ))}

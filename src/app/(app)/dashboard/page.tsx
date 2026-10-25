@@ -38,7 +38,7 @@ export default async function Dashboard() {
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <section className="card md:col-span-2">
         <p className="text-sm text-muted">Total balance · {accounts.length} accounts</p>
         <p className="mt-1 text-[34px] font-extrabold leading-tight md:text-5xl">
@@ -56,7 +56,7 @@ export default async function Dashboard() {
           ) : (
             "built-in fallback rates (live rate sources unreachable)"
           )}{" "}
-          · 1 USD = {Math.round(rates.USD).toLocaleString("en-US")} UZS · 1 KRW = {rates.KRW?.toFixed(2)} UZS
+          · <span className="whitespace-nowrap">1 USD = {Math.round(rates.USD).toLocaleString("en-US")} UZS</span> · <span className="whitespace-nowrap">1 KRW = {rates.KRW?.toFixed(2)} UZS</span>
         </p>
         <div className="mt-4 flex gap-2">
           <Link href="/assistant" className="btn-primary flex-1">Ask AI</Link>
@@ -100,19 +100,21 @@ export default async function Dashboard() {
             <Money minor={flow.incomeMinor} ccy={ccy} className="text-lg font-extrabold text-pos" />
           </div>
         </div>
-        <ul className="mt-3 space-y-2.5">
+        <ul className="mt-2 space-y-0.5">
           {cats.slice(0, 6).map((c) => (
-            <li key={c.category} className="flex items-center gap-3">
-              <span className="w-6 text-center" aria-hidden>{categoryEmoji(c.category)}</span>
-              <div className="flex-1">
-                <div className="flex justify-between text-xs">
-                  <Link href={`/transactions?category=${encodeURIComponent(c.category)}&from=${month.from}&to=${month.to}`} className="font-bold">{c.category}</Link>
-                  <Money minor={c.amountMinor} ccy={ccy} className="text-muted" />
+            <li key={c.category}>
+              <Link href={`/transactions?category=${encodeURIComponent(c.category)}&from=${month.from}&to=${month.to}`} className="flex min-h-10 items-center gap-3">
+                <span className="w-6 text-center" aria-hidden>{categoryEmoji(c.category)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between gap-2 text-xs">
+                    <span className="truncate font-bold">{c.category}</span>
+                    <Money minor={c.amountMinor} ccy={ccy} className="text-muted" />
+                  </div>
+                  <div className="mt-1 h-2 rounded-full bg-soft">
+                    <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(3, (c.amountMinor / maxCat) * 100)}%` }} />
+                  </div>
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-soft">
-                  <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(3, (c.amountMinor / maxCat) * 100)}%` }} />
-                </div>
-              </div>
+              </Link>
             </li>
           ))}
           {!cats.length && <li className="text-sm text-muted">No spending yet this month.</li>}
@@ -122,7 +124,7 @@ export default async function Dashboard() {
       <section className="card">
         <div className="flex items-baseline justify-between">
           <h2 className="font-extrabold">Recent</h2>
-          <Link href="/transactions" className="text-xs font-bold text-muted">See all →</Link>
+          <Link href="/transactions" className="-my-2 inline-flex min-h-10 items-center px-1 text-xs font-bold text-muted">See all →</Link>
         </div>
         <ul className="divide-y divide-line">
           {recent.items.map((t) => <TxnRow key={t.id} t={t} />)}

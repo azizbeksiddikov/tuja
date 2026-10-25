@@ -22,7 +22,7 @@ export default function TxnRow({ t, showAccount }: { t: TxnView; showAccount?: b
         </p>
         {t.memo ? <p className="truncate text-xs text-muted/80" title={t.memo}>“{t.memo}”</p> : null}
       </div>
-      <Money minor={t.amountMinor} ccy={t.currency} signed colored className="text-sm font-bold" />
+      <Money minor={t.amountMinor} ccy={t.currency} signed colored className="shrink-0 text-sm font-bold" />
     </li>
   );
 }

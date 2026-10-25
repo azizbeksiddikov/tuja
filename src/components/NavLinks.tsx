@@ -19,7 +19,7 @@ export function TopNav() {
         <Link
           key={n.href}
           href={n.href}
-          className={cn("rounded-full px-4 py-2 text-sm font-bold transition", path.startsWith(n.href) ? "bg-card text-ink shadow-card" : "text-muted hover:text-ink")}
+          className={cn("rounded-full px-4 py-2.5 text-sm font-bold transition", path.startsWith(n.href) ? "bg-card text-ink shadow-card" : "text-muted hover:text-ink")}
         >
           {n.label}
         </Link>
@@ -32,12 +32,12 @@ export function TabBar() {
   const path = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
-      <ul className="mx-auto flex max-w-md justify-around">
+      <ul className="mx-auto grid max-w-md grid-cols-4">
         {NAV.map((n) => {
           const on = path.startsWith(n.href);
           return (
             <li key={n.href}>
-              <Link href={n.href} className={cn("flex flex-col items-center gap-0.5 px-4 pb-3 pt-2 text-[11px]", on ? "font-bold text-ink" : "text-muted")}>
+              <Link href={n.href} className={cn("flex min-h-14 flex-col items-center justify-center gap-0.5 px-2 pb-2 pt-2 text-[11px]", on ? "font-bold text-ink" : "text-muted")}>
                 <span className={cn("text-lg leading-none", !on && "opacity-60 grayscale")} aria-hidden>
                   {n.icon}
                 </span>

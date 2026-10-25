@@ -40,27 +40,34 @@ export default async function Transactions({ searchParams }: { searchParams: Pro
   };
 
   return (
-    <div className="grid gap-3 md:grid-cols-[280px_1fr]">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-[280px_minmax(0,1fr)]">
       <form className="card flex h-fit flex-col gap-2.5 text-sm" method="get">
         <h1 className="text-lg font-extrabold">Spend</h1>
         <input name="q" defaultValue={sp.q} placeholder="Search merchant or memo" className="field" />
-        <select name="account" defaultValue={account?.id ?? ""} className="field">
-          <option value="">All accounts</option>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
-        </select>
-        <select name="category" defaultValue={filter.category ?? ""} className="field">
-          <option value="">All categories</option>
-          {categories.map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <select name="direction" defaultValue={filter.direction ?? ""} className="field">
-          <option value="">In and out</option>
-          <option value="out">Money out</option>
-          <option value="in">Money in</option>
-        </select>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs text-muted">From<input type="date" name="from" defaultValue={sp.from} className="field mt-1 px-2" /></label>
-          <label className="text-xs text-muted">To<input type="date" name="to" defaultValue={sp.to} className="field mt-1 px-2" /></label>
-        </div>
+        <details className="group" open={Boolean(account || filter.category || filter.direction || sp.from || sp.to)}>
+          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-tile px-1 text-xs font-bold text-muted">
+            More filters <span className="transition group-open:rotate-90" aria-hidden>›</span>
+          </summary>
+          <div className="mt-1 flex flex-col gap-2.5">
+            <select name="account" defaultValue={account?.id ?? ""} className="field">
+              <option value="">All accounts</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            </select>
+            <select name="category" defaultValue={filter.category ?? ""} className="field">
+              <option value="">All categories</option>
+              {categories.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <select name="direction" defaultValue={filter.direction ?? ""} className="field">
+              <option value="">In and out</option>
+              <option value="out">Money out</option>
+              <option value="in">Money in</option>
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-muted">From<input type="date" name="from" defaultValue={sp.from} className="field mt-1 px-2" /></label>
+              <label className="text-xs text-muted">To<input type="date" name="to" defaultValue={sp.to} className="field mt-1 px-2" /></label>
+            </div>
+          </div>
+        </details>
         <div className="flex gap-2">
           <button className="btn-primary flex-1">Apply</button>
           <Link href="/transactions" className="btn-soft">Reset</Link>

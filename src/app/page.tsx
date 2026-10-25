@@ -19,7 +19,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pt-6">
       <header className="flex items-center justify-between">
         <Logo />
-        <Link href="/sign-in" className="pill shadow-card">Sign in</Link>
+        <Link href="/sign-in" className="pill min-h-10 px-4 shadow-card">Sign in</Link>
       </header>
 
       <section className="grid items-center gap-6 py-10 md:grid-cols-2 md:py-16">

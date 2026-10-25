@@ -24,7 +24,7 @@ export default function CurrencySwitcher({ value }: { value: string }) {
             f.set("currency", o.code);
             start(() => setCurrencyAction(f));
           }}
-          className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${value === o.code ? "bg-dark text-card" : "text-muted hover:text-ink"}`}
+          className={`h-10 rounded-full px-2.5 text-xs font-bold transition ${value === o.code ? "bg-dark text-card" : "text-muted hover:text-ink"}`}
         >
           {o.label}
         </button>
