@@ -1,0 +1,42 @@
+# Production: app + Postgres 16. Run from the repo root on the server:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Variables come from an env file next to this compose file (default: .env, see env.example).
+# Postgres has no published port; the app listens on 127.0.0.1:3100 for nginx.
+name: tuja
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuja
+      POSTGRES_DB: tuja
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40"]
+    volumes:
+      - tuja_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuja -d tuja"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 512m
+
+  app:
+    build: .
+    image: tuja-app:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ${TUJA_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://tuja:${POSTGRES_PASSWORD}@db:5432/tuja
+      PLAID_ENV: ${PLAID_ENV:-sandbox}
+    ports:
+      - "127.0.0.1:3100:3000"
+    mem_limit: 768m
+
+volumes:
+  tuja_pg:

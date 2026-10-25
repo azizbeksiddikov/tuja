@@ -8,7 +8,12 @@ async function main() {
   try {
     const n = await storeRates(await fetchCbuRates());
     console.log(`stored ${n} CBU rates for today`);
-    if (process.argv.includes("--backfill")) {
+    let backfill = process.argv.includes("--backfill");
+    if (process.argv.includes("--backfill-if-needed")) {
+      const dates = await prisma.fxRate.groupBy({ by: ["date"] });
+      backfill = dates.length < 10;
+    }
+    if (backfill) {
       for (let i = 7; i <= 183; i += 7) {
         const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
         try {
