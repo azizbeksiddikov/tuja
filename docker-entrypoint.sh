@@ -7,11 +7,11 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 echo "[entrypoint] applying migrations"
-npx prisma migrate deploy
+/app/node_modules/.bin/prisma migrate deploy
 
 if [ "${SEED_ON_START:-1}" = "1" ]; then
   echo "[entrypoint] seeding demo persona (idempotent)"
-  npx tsx scripts/seed.ts --backfill-if-needed || echo "[entrypoint] seed failed, continuing" >&2
+  /app/node_modules/.bin/tsx scripts/seed.ts --backfill-if-needed || echo "[entrypoint] seed failed, continuing" >&2
 fi
 
 echo "[entrypoint] starting server on :${PORT:-3000}"
