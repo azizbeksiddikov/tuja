@@ -89,7 +89,7 @@ export async function* runAgent(opts: {
         stream = await request(model);
       } catch (e) {
         // Overloaded / timed-out model: retry this round once on the fallback model.
-        if (!fallback || model === fallback || !/DEADLINE|504|503|500|UNAVAILABLE|timed? ?out|aborted/i.test(String((e as Error).message))) throw e;
+        if (!fallback || model === fallback || !/DEADLINE|504|503|500|429|RESOURCE_EXHAUSTED|UNAVAILABLE|timed? ?out|aborted/i.test(String((e as Error).message))) throw e;
         console.warn(`[agent] ${model} failed (${(e as Error).message.slice(0, 80)}), falling back to ${fallback}`);
         model = fallback;
         stream = await request(model);
@@ -138,8 +138,13 @@ export async function* runAgent(opts: {
     }
   } catch (e) {
     error = (e as Error).message || "Model error";
-    console.error("[agent]", error);
-    yield { type: "error", message: /api key|permission|unauth/i.test(error) ? "AI is misconfigured on the server." : "The AI service failed. Please try again." };
+    console.error("[agent]", error.replace(/\s+/g, " ").slice(0, 300));
+    const msg = /429|RESOURCE_EXHAUSTED|quota/i.test(error)
+      ? "The AI is at its rate limit right now. Please try again in a minute."
+      : /api key|permission|unauth/i.test(error)
+        ? "AI is misconfigured on the server."
+        : "The AI service failed. Please try again.";
+    yield { type: "error", message: msg };
   }
 
   const latencyMs = Date.now() - started;

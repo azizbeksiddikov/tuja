@@ -45,12 +45,12 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
         </div>
 
         <div className="rounded-[32px] bg-dark p-6 text-card shadow-card">
-          <p className="text-xs text-card/60">Ask AI · example</p>
-          <p className="mt-1 font-bold">“How much did I spend on food in September, in dollars?”</p>
+          <p className="text-xs text-card/60">Ask AI · real answer from a test run</p>
+          <p className="mt-1 font-bold">“How much did I spend on food and drink in September, in USD? And what is my biggest category?”</p>
           <div className="mt-4 rounded-card bg-card/10 p-4 text-sm leading-relaxed">
-            You spent <b className="text-accent">$273.40</b> on Food &amp; Drink in September 2026 (₩362,600 across 41 card payments), 8% less than August.
+            In September 2026, you spent <b className="text-accent">$208.26</b> (₩275,800 across 24 transactions) on Food &amp; Drink. Your biggest category was <b className="text-accent">Housing</b> at $339.81 (₩450,000).
           </div>
-          <p className="mt-3 font-mono text-[11px] text-card/50">tool: spending_summary(2026-09-01 → 2026-09-30, USD)</p>
+          <p className="mt-3 font-mono text-[11px] text-card/50">gemini-3.6-flash · tool: spending_summary(2026-09-01 → 2026-09-30, group_by=category, USD) · 4.2 s</p>
         </div>
       </section>
 
