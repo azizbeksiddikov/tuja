@@ -5,12 +5,12 @@ const env = process.env;
 
 export const APP_NAME = env.NEXT_PUBLIC_APP_NAME || env.APP_NAME || "Tuja";
 
-const DEV_DB = "postgresql://bank:bank@localhost:5433/bank"; // docker-compose.yml, dev only
+const DEV_DB = "postgresql://bank:bank@localhost:4221/bank"; // docker-compose.yml, dev only
 
 export const config = {
   appName: APP_NAME,
   databaseUrl: env.DATABASE_URL || (env.NODE_ENV === "production" ? "" : DEV_DB),
-  baseUrl: env.BETTER_AUTH_URL || env.APP_URL || "http://localhost:3000",
+  baseUrl: env.BETTER_AUTH_URL || env.APP_URL || "http://localhost:4220",
   gemini: {
     apiKey: env.GEMINI_API_KEY || "",
     model: env.GEMINI_MODEL || "gemini-3.6-flash",

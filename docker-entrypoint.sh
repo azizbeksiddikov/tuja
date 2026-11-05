@@ -14,6 +14,6 @@ if [ "${SEED_ON_START:-1}" = "1" ]; then
   /app/node_modules/.bin/tsx scripts/seed.ts --backfill-if-needed || echo "[entrypoint] seed failed, continuing" >&2
 fi
 
-echo "[entrypoint] starting server on :${PORT:-3000}"
+echo "[entrypoint] starting server on :${PORT:-4020}"
 cd /app/server
 exec node server.js

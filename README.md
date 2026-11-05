@@ -88,7 +88,7 @@ flowchart LR
 
 - **Stack:** Next.js 16.4 (App Router, server actions), React 19.3, TypeScript, Tailwind, Prisma 7 with `@prisma/adapter-pg`, Better Auth, `@google/genai`, Plaid 49, `libpg-query` (the real Postgres parser compiled to WASM), Vitest.
 - **AI model:** `gemini-3.6-flash` by default (`GEMINI_MODEL`), falling back to `gemini-3.5-flash-lite` on timeouts, 5xx or 429. `gemini-3.8-flash` timed out on every call when I tested it, so it is not the default.
-- **Deploy:** one VPS, Docker Compose, nginx + TLS in front of `127.0.0.1:3100`. Postgres has no published port.
+- **Deploy:** one VPS, Docker Compose, nginx + TLS in front of `127.0.0.1:4020`. Postgres has no published port.
 
 ---
 
@@ -136,10 +136,10 @@ Cases live in [`evals/cases.ts`](evals/cases.ts) and the runner in [`evals/run.t
 ## Run it locally
 
 ```bash
-docker compose up -d                       # dev Postgres on 127.0.0.1:5433
+docker compose up -d                       # dev Postgres on 127.0.0.1:4221
 npm ci
 npx prisma migrate deploy && npm run db:seed -- --backfill
-npm run dev                                # http://localhost:3000
+npm run dev                                # http://localhost:4220
 npm test                                   # 82 tests (DB tests need the dev Postgres)
 npm run eval                               # needs GEMINI_API_KEY; writes evals/results.md
 npx tsx scripts/plaid-sandbox-check.ts     # needs PLAID_CLIENT_ID/PLAID_SECRET (sandbox)
@@ -147,7 +147,7 @@ npx tsx scripts/plaid-sandbox-check.ts     # needs PLAID_CLIENT_ID/PLAID_SECRET 
 
 Configuration names (no values) are listed in [`env.example`](env.example). Without a Gemini key the assistant shows "AI not configured", and without Plaid keys the Link button is hidden. Everything else works with only a database.
 
-**Production:** `docker compose -f docker-compose.prod.yml up -d --build`. The app listens on `127.0.0.1:3100`, and migrations and the demo seed run on start.
+**Production:** `docker compose -f docker-compose.prod.yml up -d --build`. The app listens on `127.0.0.1:4020`, and migrations and the demo seed run on start.
 
 ---
 

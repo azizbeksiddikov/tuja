@@ -24,7 +24,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
+    PORT=4020 \
     HOSTNAME=0.0.0.0
 RUN apk add --no-cache libc6-compat tini && addgroup -S app && adduser -S app -G app
 
@@ -43,7 +43,7 @@ COPY --from=builder --chown=app:app /app/.next/static ./server/.next/static
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 USER app
-EXPOSE 3000
+EXPOSE 4020
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/sign-in >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:4020/sign-in >/dev/null || exit 1
 ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]

@@ -1,7 +1,7 @@
 import { defineConfig } from "prisma/config";
 
 // Local dev default matches docker-compose.yml (dev-only credentials, not a secret).
-const url = process.env.DATABASE_URL ?? "postgresql://bank:bank@localhost:5433/bank";
+const url = process.env.DATABASE_URL ?? "postgresql://bank:bank@localhost:4221/bank";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Pool } from "pg";
 import { runGuardedQuery, type GuardPolicy } from "@/lib/pg-guard";
 
-const url = process.env.DATABASE_URL || "postgresql://bank:bank@localhost:5433/bank";
+const url = process.env.DATABASE_URL || "postgresql://bank:bank@localhost:4221/bank";
 const pool = new Pool({ connectionString: url, max: 3 });
 const policy: GuardPolicy = { allowedRelations: ["v_transactions", "v_accounts", "v_fx_rates"] };
 
